@@ -9,16 +9,13 @@ namespace WebKit
 	class DOMDocument : GLib.Object
 	{
 		public DOMDocument (IntPtr raw) : base (raw) {}
-		
+
 		[DllImport ("libwebkitgtk")]
-		private static extern IntPtr webkit_dom_document_get_elements_by_tag_name (IntPtr raw, IntPtr str1ng);
-		
+		private static extern IntPtr webkit_dom_document_get_elements_by_tag_name (IntPtr raw, Char[] tagname);
+
 		public DOMNodeList get_elements_by_tag_name (string tag)
 		{
-			IntPtr intPtr = Marshaller.StringToPtrGStrdup (tag);
-			IntPtr result = webkit_dom_document_get_elements_by_tag_name(base.Handle, intPtr);
-			Marshaller.Free (intPtr);
-			return new DOMNodeList(result);
+			return new DOMNodeList(webkit_dom_document_get_elements_by_tag_name(base.Handle, tag.ToCharArray()));
 		}
 	}
 
@@ -43,8 +40,13 @@ namespace WebKit
 	class DOMNode : GLib.Object
 	{
 		public DOMNode (IntPtr raw) : base (raw) {}
-		
-		
+
+		[DllImport ("libwebkitgtk")]
+		private static extern Char[] webkit_dom_node_get_text_content(IntPtr raw);
+		public string get_text_content ()
+		{
+			return new string(webkit_dom_node_get_text_content(this.Handle));
+		}
 	}
 	
 	class DOMElement : GLib.Object
@@ -85,15 +87,23 @@ namespace WebKit
 			set { webkit_web_view_set_settings(this.Handle, value.Handle); }
 		}
 
-		private delegate void CreateWebViewDelegate(object o, SignalArgs args);
 		public Delegate CreateWebView {
-			set { this.AddSignalHandler("create-web-view", value); }
+			set { Type args_type = value.Method.GetParameters()[1].ParameterType;
+				this.AddSignalHandler("create-web-view", value, args_type); }
 		}
 		public Delegate WebViewReady {
 			set { this.AddSignalHandler ("web-view-ready", value); }
 		}
 		public Delegate NewWindowPolicyDecisionRequested {
 			set { this.AddSignalHandler ("new-window-policy-decision-requested", value); }
+		}
+
+		public Delegate CloseWebView {
+			set { this.AddSignalHandler ("close-web-view", value); }
+		}
+
+		public Delegate TitleChanged {
+			set { this.AddSignalHandler ("title-changed", value); }
 		}
 
 		[DllImport ("libwebkitgtk")]
@@ -113,7 +123,6 @@ namespace WebKit
 		{
 			return new DOMDocument(webkit_web_view_get_dom_document(this.Handle));
 		}
-
 	}
 
 	public class WebSettings : GLib.Object
@@ -133,39 +142,5 @@ namespace WebKit
 		[DllImport ("libwebkitgtk")]
 		private static extern IntPtr webkit_web_settings_new();
 		public WebSettings () : base(webkit_web_settings_new()) { }
-	}
-
-	public delegate void WebViewReadyHandler (object o, WebViewReadyArgs args);
-	
-	public class WebViewReadyArgs : SignalArgs
-	{
-		//
-		// Properties
-		//
-		
-		public WebFrame Frame
-		{
-			get
-			{
-				return (WebFrame)base.Args [0];
-			}
-		}
-	}
-	
-	public delegate void CreateWebViewHandler (object o, CreateWebViewArgs args);
-	
-	public class CreateWebViewArgs : SignalArgs
-	{
-		//
-		// Properties
-		//
-		
-		public WebFrame Frame
-		{
-			get
-			{
-				return (WebFrame)base.Args [0];
-			}
-		}
 	}
 }
