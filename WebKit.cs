@@ -6,20 +6,26 @@ using GLib;
 
 namespace WebKit
 {
-	class DOMDocument : GLib.Object
+	public class DOMDocument : GLib.Object
 	{
 		public DOMDocument (IntPtr raw) : base (raw) {}
 
 		[DllImport ("libwebkitgtk")]
 		private static extern IntPtr webkit_dom_document_get_elements_by_tag_name (IntPtr raw, Char[] tagname);
-
 		public DOMNodeList get_elements_by_tag_name (string tag)
 		{
 			return new DOMNodeList(webkit_dom_document_get_elements_by_tag_name(base.Handle, tag.ToCharArray()));
 		}
+
+		[DllImport ("libwebkitgtk")]
+		private static extern IntPtr webkit_dom_document_get_element_by_id(IntPtr raw, Char[] elementId);
+		public DOMElement get_element_by_id (string elementId)
+		{
+			return new DOMElement(webkit_dom_document_get_element_by_id(this.Handle, elementId.ToCharArray()));
+		}
 	}
 
-	class DOMNodeList: GLib.Object, IEnumerable
+	public class DOMNodeList: GLib.Object, IEnumerable
 	{
 		public DOMNodeList (IntPtr raw) : base (raw) {}
 		
@@ -37,7 +43,7 @@ namespace WebKit
 		}
 	}
 	
-	class DOMNode : GLib.Object
+	public class DOMNode : GLib.Object
 	{
 		public DOMNode (IntPtr raw) : base (raw) {}
 
@@ -49,14 +55,27 @@ namespace WebKit
 		}
 	}
 	
-	class DOMElement : GLib.Object
+	public class DOMElement : GLib.Object
 	{
 		public DOMElement (IntPtr raw) : base (raw) {}
 		
-		
+		[DllImport ("libwebkitgtk")]
+		private static extern Char[] webkit_dom_element_get_attribute(IntPtr raw, Char[] name);
+		public string get_attribute (string name)
+		{
+			return new string(webkit_dom_element_get_attribute(this.Handle, name.ToCharArray()));
+		}
+
+		[DllImport ("libwebkitgtk")]
+		private static extern void webkit_dom_element_set_attribute(IntPtr raw, Char[] name, Char[] value, IntPtr error);
+		public void set_attribute (string name, string value)
+		{
+			IntPtr error = new IntPtr();
+			webkit_dom_element_set_attribute(this.Handle, name.ToCharArray(), value.ToCharArray(), error);
+		}
 	}
 	
-	class DOMHTMLElement : GLib.Object
+	public class DOMHTMLElement : GLib.Object
 	{
 		public DOMHTMLElement (IntPtr raw) : base (raw) {}
 		
@@ -106,6 +125,10 @@ namespace WebKit
 			set { this.AddSignalHandler ("title-changed", value); }
 		}
 
+		public Delegate LoadFinished {
+			set { this.AddSignalHandler ("load-finished", value); }
+		}
+
 		[DllImport ("libwebkitgtk")]
 		private static extern IntPtr webkit_web_view_new();
 		public WebView () : base(webkit_web_view_new()) { }
@@ -119,7 +142,7 @@ namespace WebKit
 
 		[DllImport ("libwebkitgtk")]
 		private static extern IntPtr webkit_web_view_get_dom_document (IntPtr raw);
-		DOMDocument get_dom_document()
+		public DOMDocument get_dom_document()
 		{
 			return new DOMDocument(webkit_web_view_get_dom_document(this.Handle));
 		}
