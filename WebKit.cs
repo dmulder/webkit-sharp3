@@ -6,26 +6,31 @@ using GLib;
 
 namespace WebKit
 {
-	public class DOMDocument : GLib.Object
+	unsafe public class DOMDocument : GLib.Object
 	{
 		public DOMDocument (IntPtr raw) : base (raw) {}
 
 		[DllImport ("libwebkitgtk")]
-		private static extern IntPtr webkit_dom_document_get_elements_by_tag_name (IntPtr raw, Char[] tagname);
+		private static extern IntPtr webkit_dom_document_get_elements_by_tag_name (IntPtr raw, IntPtr tagname);
 		public DOMNodeList get_elements_by_tag_name (string tag)
 		{
-			return new DOMNodeList(webkit_dom_document_get_elements_by_tag_name(base.Handle, tag.ToCharArray()));
+//			fixed(char* local_tag=tag)
+//				return new DOMNodeList(webkit_dom_document_get_elements_by_tag_name(this.Handle, local_tag));
+			return new DOMNodeList(webkit_dom_document_get_elements_by_tag_name(this.Handle, Marshaller.StringToPtrGStrdup(tag)));
 		}
 
 		[DllImport ("libwebkitgtk")]
-		private static extern IntPtr webkit_dom_document_get_element_by_id(IntPtr raw, Char[] elementId);
+		//private static extern IntPtr webkit_dom_document_get_element_by_id(IntPtr raw, char* elementId);
+		private static extern IntPtr webkit_dom_document_get_element_by_id(IntPtr raw, IntPtr elementId);
 		public DOMElement get_element_by_id (string elementId)
 		{
-			return new DOMElement(webkit_dom_document_get_element_by_id(this.Handle, elementId.ToCharArray()));
+			//fixed(char* local_elementId=elementId)
+			//	return new DOMElement(webkit_dom_document_get_element_by_id(this.Handle, local_elementId));
+			return new DOMElement(webkit_dom_document_get_element_by_id(this.Handle, Marshaller.StringToPtrGStrdup(elementId)));
 		}
 	}
 
-	public class DOMNodeList: GLib.Object, IEnumerable
+	unsafe public class DOMNodeList: GLib.Object, IEnumerable
 	{
 		public DOMNodeList (IntPtr raw) : base (raw) {}
 		
@@ -37,41 +42,44 @@ namespace WebKit
 		
 		public IEnumerator GetEnumerator ()
 		{
-			for (int i = 0; i < webkit_dom_node_list_get_length(base.Handle); i++) {
-				yield return new DOMNode(webkit_dom_node_list_item(base.Handle, i));
+			for (int i = 0; i < webkit_dom_node_list_get_length(this.Handle); i++) {
+				yield return new DOMNode(webkit_dom_node_list_item(this.Handle, i));
 			}
 		}
 	}
 	
-	public class DOMNode : GLib.Object
+	unsafe public class DOMNode : GLib.Object
 	{
 		public DOMNode (IntPtr raw) : base (raw) {}
 
 		[DllImport ("libwebkitgtk")]
-		private static extern Char[] webkit_dom_node_get_text_content(IntPtr raw);
+		private static extern IntPtr webkit_dom_node_get_text_content(IntPtr raw);
 		public string get_text_content ()
 		{
-			return new string(webkit_dom_node_get_text_content(this.Handle));
+			IntPtr data = webkit_dom_node_get_text_content(this.Handle);
+			return Marshaller.PtrToStringGFree (data);
 		}
 	}
 	
-	public class DOMElement : GLib.Object
+	unsafe public class DOMElement : GLib.Object
 	{
 		public DOMElement (IntPtr raw) : base (raw) {}
 		
 		[DllImport ("libwebkitgtk")]
-		private static extern Char[] webkit_dom_element_get_attribute(IntPtr raw, Char[] name);
+		private static extern IntPtr webkit_dom_element_get_attribute(IntPtr raw, IntPtr name);
 		public string get_attribute (string name)
 		{
-			return new string(webkit_dom_element_get_attribute(this.Handle, name.ToCharArray()));
+			IntPtr data = webkit_dom_element_get_attribute (this.Handle, Marshaller.StringToPtrGStrdup(name));
+			return Marshaller.PtrToStringGFree(data);
 		}
 
 		[DllImport ("libwebkitgtk")]
-		private static extern void webkit_dom_element_set_attribute(IntPtr raw, Char[] name, Char[] value, IntPtr error);
+		//private static extern void webkit_dom_element_set_attribute(IntPtr raw, char* name, char* value, IntPtr error);
+		private static extern void webkit_dom_element_set_attribute(IntPtr raw, IntPtr name, IntPtr value, IntPtr error);
 		public void set_attribute (string name, string value)
 		{
 			IntPtr error = new IntPtr();
-			webkit_dom_element_set_attribute(this.Handle, name.ToCharArray(), value.ToCharArray(), error);
+			webkit_dom_element_set_attribute(this.Handle, Marshaller.StringToPtrGStrdup(name), Marshaller.StringToPtrGStrdup(value), error);
 		}
 	}
 	
@@ -84,7 +92,7 @@ namespace WebKit
 		
 		public string get_inner_text ()
 		{
-			IntPtr data = webkit_dom_html_element_get_inner_text(base.Handle);
+			IntPtr data = webkit_dom_html_element_get_inner_text(this.Handle);
 			return Marshaller.PtrToStringGFree(data);
 		}
 	}
@@ -107,14 +115,19 @@ namespace WebKit
 		}
 
 		public Delegate CreateWebView {
-			set { Type args_type = value.Method.GetParameters()[1].ParameterType;
-				this.AddSignalHandler("create-web-view", value, args_type); }
+			set {
+				Type args_type = value.Method.GetParameters()[1].ParameterType;
+				this.AddSignalHandler("create-web-view", value, args_type);
+			}
 		}
 		public Delegate WebViewReady {
 			set { this.AddSignalHandler ("web-view-ready", value); }
 		}
 		public Delegate NewWindowPolicyDecisionRequested {
-			set { this.AddSignalHandler ("new-window-policy-decision-requested", value); }
+			set {
+				Type args_type = value.Method.GetParameters()[1].ParameterType;
+				this.AddSignalHandler ("new-window-policy-decision-requested", value, args_type);
+			}
 		}
 
 		public Delegate CloseWebView {
@@ -127,6 +140,17 @@ namespace WebKit
 
 		public Delegate LoadFinished {
 			set { this.AddSignalHandler ("load-finished", value); }
+		}
+
+		public Delegate DocumentLoadFinished {
+			set { this.AddSignalHandler ("document-load-finished", value); }
+		}
+
+		public Delegate NavigationRequested {
+			set {
+				Type args_type = value.Method.GetParameters () [1].ParameterType;
+				this.AddSignalHandler ("navigation-requested", value, args_type);
+			}
 		}
 
 		[DllImport ("libwebkitgtk")]
@@ -165,5 +189,19 @@ namespace WebKit
 		[DllImport ("libwebkitgtk")]
 		private static extern IntPtr webkit_web_settings_new();
 		public WebSettings () : base(webkit_web_settings_new()) { }
+	}
+
+	public class NetworkRequest : GLib.Object
+	{
+		public NetworkRequest (IntPtr raw) : base(raw) { }
+
+		[DllImport ("libwebkitgtk")]
+		private static extern IntPtr webkit_network_request_get_uri(IntPtr raw);
+		public string Uri {
+			get {
+				IntPtr data = webkit_network_request_get_uri(this.Handle);
+				return Marshaller.PtrToStringGFree(data);
+			}
+		}
 	}
 }
